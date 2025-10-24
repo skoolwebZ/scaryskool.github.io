@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Haunted Survival</title>
+<style>
+  body { margin:0; overflow:hidden; background:black; font-family:sans-serif; }
+  canvas { display:block; margin:0 auto; background:#000; }
+</style>
+</head>
+<body>
+
+<audio id="bgMusic" loop>
+  <source src="https://www.soundhelix.com/examples/mp3/SoundHelix-Song-1.mp3" type="audio/mpeg">
+</audio>
+<audio id="screamSound">
+  <source src="https://freesound.org/data/previews/331/331912_3248244-lq.mp3" type="audio/mpeg">
+</audio>
+<audio id="heartbeat">
+  <source src="https://freesound.org/data/previews/348/348405_6241731-lq.mp3" type="audio/mpeg">
+</audio>
+
+<script>
+const canvas = document.createElement('canvas');
+const ctx = canvas.getContext('2d');
+canvas.width = 600;
+canvas.height = 400;
+document.body.appendChild(canvas);
+
+const bgMusic = document.getElementById('bgMusic');
+const screamSound = document.getElementById('screamSound');
+const heartbeat = document.getElementById('heartbeat');
+
+const player = {x:280, y:350, width:30, height:30, color:'lime', speed:4};
+const ghosts = [
+  {x:50,y:50,width:40,height:40,color:'red',speed:1.5},
+  {x:500,y:100,width:40,height:40,color:'purple',speed:1.2},
+  {x:300,y:50,width:40,height:40,color:'orange',speed:1.0}
+];
+
+const walls = [
+  {x:0,y:0,width:600,height:20},{x:0,y:0,width:20,height:400},{x:580,y:0,width:20,height:400},{x:0,y:380,width:600,height:20},
+  {x:100,y:100,width:400,height:20},{x:100,y:100,width:20,height:200},{x:480,y:100,width:20,height:200},{x:100,y:280,width:400,height:20}
+];
+
+let keys = {};
+document.addEventListener('keydown', e=> keys[e.key]=true);
+document.addEventListener('keyup', e=> keys[e.key]=false);
+
+let startTime = Date.now();
+let survived = 0;
+let gameOver = false;
+let flickerTimer = 0;
+
+// Game loop
+function gameLoop(){
+  movePlayer();
+  moveGhosts();
+  checkCollision();
+  flickerLights();
+  draw();
+  if(!gameOver) requestAnimationFrame(gameLoop);
+}
+
+// Move player
+function movePlayer(){
+  let dx=0,dy=0;
+  if(keys['ArrowUp']) dy=-player.speed;
+  if(keys['ArrowDown']) dy=player.speed;
+  if(keys['ArrowLeft']) dx=-player.speed;
+  if(keys['ArrowRight']) dx=player.speed;
+  const nextPos = {x:player.x+dx,y:player.y+dy,width:player.width,height:player.height};
+  if(!checkWallCollision(nextPos)){ player.x+=dx; player.y+=dy; }
+}
+
+// Move ghosts toward player
+function moveGhosts(){
+  ghosts.forEach(g=>{
+    let dx=player.x-g.x, dy=player.y-g.y;
+    let dist=Math.sqrt(dx*dx+dy*dy);
+    g.x += (dx/dist)*g.speed;
+    g.y += (dy/dist)*g.speed;
+    // Heartbeat
+    if(dist<150){ heartbeat.volume = (150-dist)/150; if(heartbeat.paused) heartbeat.play(); }
+  });
+}
+
+// Wall collision
+function checkWallCollision(rect){
+  for(const w of walls){
+    if(rect.x< w.x+w.width && rect.x+rect.width>w.x && rect.y<w.y+w.height && rect.y+rect.height>w.y) return true;
+  }
+  return false;
+}
+
+// Collision with ghosts
+function checkCollision(){
+  for(const g of ghosts){
+    if(player.x<g.x+g.width && player.x+player.width>g.x && player.y<g.y+g.height && player.y+player.height>g.y){
+      screamSound.play();
+      alert('Caught by a ghost! Survived: '+Math.floor(survived)+' seconds');
+      gameOver = true;
+      resetGame();
+    }
+  }
+}
+
+// Flickering lights
+function flickerLights(){
+  flickerTimer++;
+}
+
+// Draw everything
+function draw(){
+  // Darkness background
+  let alpha = 0.9 + Math.sin(flickerTimer*0.1)*0.1;
+  ctx.fillStyle=`rgba(0,0,0,${alpha})`;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+
+  // Walls
+  ctx.fillStyle='gray';
+  walls.forEach(w=>ctx.fillRect(w.x,w.y,w.width,w.height));
+
+  // Player
+  ctx.fillStyle=player.color; ctx.fillRect(player.x,player.y,player.width,player.height);
+
+  // Ghosts
+  ghosts.forEach(g=>{ ctx.fillStyle=g.color; ctx.fillRect(g.x,g.y,g.width,g.height); });
+
+  // Timer
+  survived = (Date.now()-startTime)/1000;
+  ctx.fillStyle='white'; ctx.font='20px Arial';
+  ctx.fillText('Survived: '+Math.floor(survived)+'s',10,20);
+  ctx.fillText('Made by Josh J', canvas.width-140, canvas.height-10);
+}
+
+// Reset
+function resetGame(){
+  player.x=280; player.y=350;
+  ghosts[0].x=50; ghosts[0].y=50;
+  ghosts[1].x=500; ghosts[1].y=100;
+  ghosts[2].x=300; ghosts[2].y=50;
+  startTime=Date.now();
+  gameOver=false;
+}
+
+// Start music
+bgMusic.volume=0.2;
+bgMusic.play();
+gameLoop();
+</script>
+</body>
+</html>
