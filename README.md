@@ -1,0 +1,1 @@
+# scaryskool.github.io
